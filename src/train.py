@@ -12,10 +12,10 @@ sns.set_style('darkgrid')
 _ROOT_DIR = dirname(dirname(abspath(__file__)))
 _MFCC_SPEECH_COMMANDS_PATH = _ROOT_DIR+'/data/mfcc_speech_commands.npz'
 _PATH_TO_RESULTS = _ROOT_DIR+'/results'
-_PATH_TO_MODEL = _PATH_TO_RESULTS+'/results/model.h5'
+_PATH_TO_MODEL = _PATH_TO_RESULTS+'/model/'
 
 _BATCH_SIZE = 100
-_EPOCHS = 30
+_EPOCHS = 20
 _LEARNING_RATE = 1e-3
 _DROPOUT = 0.2
 
@@ -50,7 +50,7 @@ history = model.fit(X_train, Y_train, epochs=_EPOCHS, batch_size=_BATCH_SIZE, ve
                     callbacks=[checkpoint, reduce_lr, tensorboard_callback])
 
 
-tf.keras.models.save_model(model, _PATH_TO_MODEL)
+tf.saved_model.save(model, _PATH_TO_MODEL)
 
 
 # Plot results
