@@ -12,7 +12,6 @@ In this project a Convolutional Neural Network is implemented using TensorFlow i
   - [Preprocessing](#preprocessing)
   - [Model Architecture](#model-architecture)
   - [Training](#training)
-  - [Model Transfer Using TensorFlow Lite](#model-transfer-using-tensorflow-lite)
   - [Deploy Model on Raspberry Pi](#deploy-model-on-raspberry-pi)
 
 
@@ -36,6 +35,11 @@ python src/feature_extraction.py
 In order to train the model, run the command
 ```
 python src/train.py
+```
+
+Convert the trained model into the lite version
+```
+python src/model-converter.py -i results/model -o results/lite_model.h5 
 ```
 
 ## Dataset
@@ -88,8 +92,6 @@ The network was trained for 30 epochs using `dropout=0.2` and `batch_size=100`, 
 
 ![](results/images/confusion_matrix.png)
 
-## Model Transfer Using TensorFlow Lite
-TODO
 
 ## Deploy Model on Raspberry Pi
 TODO
