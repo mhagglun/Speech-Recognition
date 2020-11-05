@@ -37,7 +37,7 @@ def generateSilenceSamples(num_samples, _DATASET_DIRECTORY_PATH):
 
     background_noise_sources = [os.path.join(_DATASET_DIRECTORY_PATH+'/_background_noise_', name)
                                 for name in os.listdir(_DATASET_DIRECTORY_PATH+'/_background_noise_') if name.endswith('.wav')]
-    print(background_noise_sources)
+
     for index in range(num_samples):
         # Choose random recording
         source_file = random.choice(background_noise_sources)
