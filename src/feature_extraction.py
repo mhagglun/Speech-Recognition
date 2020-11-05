@@ -1,3 +1,4 @@
+import os
 import util
 import shutil
 import random
@@ -6,39 +7,47 @@ import numpy as np
 import scipy.io.wavfile as wav
 import python_speech_features
 
-from os import remove as osRemove, listdir
-from os.path import dirname, abspath, isdir, join
 
 # Project Paths
-_ROOT_DIR = dirname(dirname(abspath(__file__)))
+_ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DATASET_DIRECTORY_PATH = _ROOT_DIR+'/data/speech_commands'
 _DOWNLOAD_URL = 'http://download.tensorflow.org/data/speech_commands_v0.02.tar.gz'
 _MFCC_SPEECH_COMMANDS_PATH = _ROOT_DIR+'/data/mfcc_speech_commands.npz'
-
+_WORDS = ['unknown', 'silence', 'yes', 'no', 'up', 'down', 'left', 'right', 'on', 'off', 'stop', 'go']
 _MFCC_MAX_SIZE = 16
 
 # Check if directory exist, otherwise download, extract and remove the archive
-if not isdir(_DATASET_DIRECTORY_PATH):
+if not os.path.isdir(_DATASET_DIRECTORY_PATH):
     print('Downloading from ' + _DOWNLOAD_URL)
     util.download_file(_DOWNLOAD_URL, _ROOT_DIR+'/data/speech_commands.tar.gz')
     print("Extracting archive...")
     shutil.unpack_archive(
         _ROOT_DIR+'/data/speech_commands.tar.gz', _DATASET_DIRECTORY_PATH)
-    osRemove('data/speech_commands.tar.gz')
+    os.remove('data/speech_commands.tar.gz')
     print("Done.")
 
 
 # Get labels for the dataset
-labels = [name for name in listdir(_DATASET_DIRECTORY_PATH) if not name.startswith(
-    '_') and isdir(join(_DATASET_DIRECTORY_PATH, name))]
+labels = [name for name in os.listdir(_DATASET_DIRECTORY_PATH) if not name.startswith(
+    '_') and os.path.isdir(os.path.join(_DATASET_DIRECTORY_PATH, name))]
+
+# Create samples for 'silence' from the longer _background_noises_ recordings
+if not 'silence' in labels:
+    labels.append('silence')
+
+silence_samples = random.randint(1500, 4000)
+util.generateSilenceSamples(silence_samples, _DATASET_DIRECTORY_PATH)
 
 filenames = []
 ground_truth = []
-for index, label in enumerate(labels):
-    for file in listdir(join(_DATASET_DIRECTORY_PATH, label)):
-        filenames.append(join(_DATASET_DIRECTORY_PATH, label, file))
-        ground_truth.append(index)
-
+for label in labels:
+    for file in os.listdir(os.path.join(_DATASET_DIRECTORY_PATH, label)):
+        filenames.append(os.path.join(_DATASET_DIRECTORY_PATH, label, file))
+        if label in _WORDS:
+            ind = _WORDS.index(label)
+            ground_truth.append(ind)
+        else:
+            ground_truth.append(0)  # Reserved for unknown
 
 # Shuffle data
 shuffled_data = list(zip(filenames, ground_truth))
@@ -46,7 +55,7 @@ random.shuffle(shuffled_data)
 filenames, ground_truth = zip(*shuffled_data)
 
 ground_truth = np.asarray(ground_truth).reshape((-1, 1)).squeeze()
-one_hot_truth = np.eye(len(labels))[ground_truth]
+one_hot_truth = np.eye(len(_WORDS))[ground_truth]
 
 
 def generate_mfcc(filename):
@@ -103,6 +112,6 @@ np.savez(_MFCC_SPEECH_COMMANDS_PATH,
          X_test=X_test,
          Y_test=Y_test,
          y_test=y_test,
-         labels=labels)
+         labels=_WORDS)
 
 print("Saved to " + _MFCC_SPEECH_COMMANDS_PATH)
