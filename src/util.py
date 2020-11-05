@@ -1,9 +1,11 @@
-from numpy.core.fromnumeric import size
-import tensorflow as tf
-import numpy as np
-import matplotlib.pyplot as plt
-import urllib.request
+import os
+import shutil
+import random
 import itertools
+import numpy as np
+import urllib.request
+import scipy.io.wavfile as wav
+import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 
@@ -19,6 +21,31 @@ def download_file(url, output_path):
                              miniters=1, desc=url.split('/')[-1]) as t:
         urllib.request.urlretrieve(
             url, filename=output_path, reporthook=t.update_to)
+
+
+def generateSilenceSamples(num_samples, _DATASET_DIRECTORY_PATH):
+    """Randomly generates a number of 1 second 'silence' samples 
+       from the recordings in the _background_noise_ directory.
+
+    Args:
+        num_samples ([int]): The total number of silence samples to generate
+        _DATASET_DIRECTORY_PATH ([string]): The path to the directory to create and save the silence samples
+    """
+    if os.path.exists(_DATASET_DIRECTORY_PATH+'/silence'):
+        shutil.rmtree(_DATASET_DIRECTORY_PATH+'/silence')
+    os.mkdir(_DATASET_DIRECTORY_PATH+'/silence')
+
+    background_noise_sources = [os.path.join(_DATASET_DIRECTORY_PATH+'/_background_noise_', name)
+                                for name in os.listdir(_DATASET_DIRECTORY_PATH+'/_background_noise_') if name.endswith('.wav')]
+    print(background_noise_sources)
+    for index in range(num_samples):
+        # Choose random recording
+        source_file = random.choice(background_noise_sources)
+        (rate, signal) = wav.read(source_file)                # Read audiofile
+        # Choose random section
+        offset = random.randint(0, len(signal)-rate)
+        wav.write(_DATASET_DIRECTORY_PATH+'/silence/{}.wav'.format(index),
+                  rate, signal[offset:offset+rate])  # Write new file
 
 
 def plot_confusion_matrix(cm, class_names):
