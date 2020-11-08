@@ -12,17 +12,18 @@ def main():
     args = parser.parse_args()
 
     if args.input is None:
-        print("Error: Missing required flag: -i, --input.\nTry 'model-converter --help' for more information. ")
+        print("Error: Missing required flag: -i, --input.\nTry 'model_converter --help' for more information. ")
         sys.exit(1)
 
     if args.output is None:
-        print("Error: Missing required flag: -o, --output.\nTry 'model-converter --help' for more information. ")
+        print("Error: Missing required flag: -o, --output.\nTry 'model_converter --help' for more information. ")
         sys.exit(1)
 
-    converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir=args.input)
+    converter = tf.lite.TFLiteConverter.from_saved_model(
+        saved_model_dir=args.input)
     lite_model = converter.convert()
     open(args.output, 'wb').write(lite_model)
-    
+
 
 if __name__ == "__main__":
     main()
