@@ -11,8 +11,9 @@ In this project a Convolutional Neural Network is implemented using TensorFlow i
     - [Usage](#usage)
   - [Dataset](#dataset)
   - [Pipeline](#pipeline)
-    - [Data Augmentation](#data-augmentation)
     - [Preprocessing](#preprocessing)
+    - [Data Augmentation](#data-augmentation)
+    - [Feature Extraction](#feature-extraction)
   - [Training](#training)
   - [Deploy Model on Raspberry Pi](#deploy-model-on-raspberry-pi)
 
@@ -34,10 +35,10 @@ Start the notebook `train.ipynb` which will download the dataset, set up the pip
 notebook jupyter
 ```
 
-The trained model which is saved to `results/model` can then be converted into the TFLite version
+The trained model which is saved to `results/model.h5` can then be converted into the TFLite version
 
 ```
-python src/model_converter.py -i results/model -o results/model.tflite
+python src/model_converter.py -i results/model.h5 -o results/model
 ```
 
 ## Dataset
@@ -52,23 +53,31 @@ The dataset used is the Speech Commands from [TensorFlow Datasets](https://www.t
 
 A pipeline for preprocessing and data augmentation is set up in order to train the network.
 
+### Preprocessing
+
+The preprocessing consists of decoding audio samples (.wav-file) such that the amplitudes are `[-1.0, 1.0]`.
+Since each audio sample is only approximately 1 second long, the sizes will vary slightly. Each sample is therefore zero-padded to insure that the inputs always have equal shape.
+
 ### Data Augmentation
 
 Training samples will randomly be augmented by adding noise to the source signal. The noise added consists of random segments from one of the longer recordings from `/_background_noise_`.
 
-### Preprocessing
+### Feature Extraction
 
-The preprocessing consists of extracting features (log mel-spectrograms) from each audio sample (.wav-file). Since each audio sample is only approximately 1 second long, the size of the generated spectrograms will vary slightly. In order to train the model the input size of each sample needs to be fixed, which is done using zero-padding when necessary.
+The features that the network will train on are the log melspectograms calculated from the signals.
 
-Below are some visual representations of the features extracted for some of the spoken words, which the CNN will learn from.
+The actual feature extraction is implemented in such a way that it's not part of the data pipeline per se. Instead a custom layer is added as the first layer of the network where the features are computed. This means that the feature extraction is done by the GPU instead of the CPU during the preprocessing stage, which results in a considerable reduction in total training time.
+
+Below are some visual representations of the features (log melspectograms) extracted for some of the spoken words, which the CNN will learn from.
 
 ![](docs/images/extracted_features.png)
 
 ## Training
 
-The network was trained for 10 epochs using `dropout=0.2` and `batch_size=100`, with an initial learning rate of 1e-3.
+The network was trained for 20 epochs using `dropout=0.2` and `batch_size=100`, with an initial learning rate of 1e-3.
 
 ![](results/images/training_process.png)
+![](results/images/confusion_matrix.png)
 
 ## Deploy Model on Raspberry Pi
 
