@@ -1,6 +1,6 @@
-import sys
 import argparse
 import tensorflow as tf
+from cnn import cnn_tflite_compatible_model
 
 
 def main():
@@ -19,10 +19,15 @@ def main():
         print("Error: Missing required flag: -o, --output.\nTry 'model_converter --help' for more information. ")
         sys.exit(1)
 
-    converter = tf.lite.TFLiteConverter.from_saved_model(
-        saved_model_dir=args.input)
-    lite_model = converter.convert()
-    open(args.output, 'wb').write(lite_model)
+    # Load the model and weights
+    model = cnn_tflite_compatible_model()
+    model.load_weights(args.input)
+
+    # Convert the model
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    converter.experimental_new_converter = True
+    tflite_model = converter.convert()
+    open("{}.tflite".format(args.output), 'wb').write(tflite_model)
 
 
 if __name__ == "__main__":
