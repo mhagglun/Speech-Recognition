@@ -15,13 +15,14 @@ def cnn():
                       kernel_initializer='he_normal'),
         layers.Conv2D(32, 2, activation='relu',
                       kernel_initializer='he_normal'),
-        layers.MaxPooling2D(),
         layers.Conv2D(64, 2, activation='relu',
+                      kernel_initializer='he_normal'),
+        layers.Conv2D(128, 2, activation='relu',
                       kernel_initializer='he_normal'),
         layers.MaxPooling2D(),
         layers.Flatten(),
-        layers.Dense(128, activation='relu', kernel_initializer='he_normal'),
         layers.Dropout(params.DROPOUT),
+        layers.Dense(64, activation='relu', kernel_initializer='he_normal'),
         layers.Dense(len(params.WORDS), activation='softmax'),
     ], name="CNN")
 
