@@ -1,5 +1,6 @@
 import os
 import glob
+import params
 import librosa
 import pathlib
 import argparse
@@ -9,12 +10,7 @@ import tflite_runtime.interpreter as tflite
 
 from tqdm import tqdm
 
-_LABELS = np.array(['unknown', 'silence', 'yes', 'no', 'up',
-                    'down', 'left', 'right', 'on', 'off', 'stop', 'go'])
-
-_NFTT = 255
-_HOP_LENGTH = 1400
-_SAMPLE_RATE = 16000
+_LABELS = np.array(params.WORDS)
 
 
 def main():
@@ -45,11 +41,8 @@ def main():
 
     for filename in tqdm(filenames, desc="Predicting"):
         signal, label = get_sample(filename)
-        features = get_features(signal).T
-
-        in_tensor = np.float32(features.reshape(
-            1, features.shape[0], features.shape[1], 1))
-        interpreter.set_tensor(input_details[0]['index'], in_tensor)
+        interpreter.set_tensor(
+            input_details[0]['index'], signal)
         interpreter.invoke()
         output_data = interpreter.get_tensor(output_details[0]['index'])
         label_id = np.argmax(output_data)
@@ -64,22 +57,11 @@ def main():
 
 
 def get_sample(filepath):
-    signal, sr = librosa.load(filepath)
+    signal, _ = librosa.load(filepath, sr=params.SAMPLE_RATE)
+    signal = np.reshape(signal, (1, params.SAMPLE_RATE))
+
     label = filepath.split('/')[-2]
     return signal, label
-
-
-def get_features(signal):
-    mel_spectrogram = librosa.feature.melspectrogram(
-        signal, sr=_SAMPLE_RATE, n_fft=_NFTT, hop_length=_HOP_LENGTH, n_mels=20)
-
-    log_mel_spectrogram = librosa.power_to_db(
-        mel_spectrogram, amin=1e-16, top_db=80.0)
-
-    log_mel_spectrogram = (log_mel_spectrogram - np.min(log_mel_spectrogram)) / \
-        (np.max(log_mel_spectrogram) - np.min(log_mel_spectrogram))
-
-    return log_mel_spectrogram
 
 
 if __name__ == "__main__":
