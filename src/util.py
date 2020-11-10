@@ -1,11 +1,11 @@
 import os
 import shutil
+import params
 import random
-import itertools
 import numpy as np
 import urllib.request
+import tensorflow as tf
 import scipy.io.wavfile as wav
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 
@@ -48,36 +48,63 @@ def generateSilenceSamples(num_samples, _DATASET_DIRECTORY_PATH):
                   rate, signal[offset:offset+rate])  # Write new file
 
 
-def plot_confusion_matrix(cm, class_names):
-    """
-    From: https://www.tensorflow.org/tensorboard/image_summaries
-    Returns a matplotlib figure containing the plotted confusion matrix.
+def generate_log_mel_spectrograms(signal, label):
+    """Method for feature extraction. Calculates the log mel-spectrogram representation of the input signal.
 
     Args:
-        cm (array, shape = [n, n]): a confusion matrix of integer classes
-        class_names (array, shape = [n]): String names of the integer classes
+        signal (tf.Tensor[float]): [description]. The input signal to extract features on.
+    Returns:
+        [tf.Tensor[float]]: [description] The log mel-spectrogram representation of the input signal
+        [tf.Tensor[int]]: [description]   The encoded label of the sample
     """
-    figure = plt.figure(figsize=(10, 10))
-    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-    plt.title("Confusion matrix")
-    plt.colorbar()
-    tick_marks = np.arange(len(class_names))
-    plt.xticks(tick_marks, class_names, rotation=90)
-    plt.yticks(tick_marks, class_names)
+    # Compute short time fourier transform
+    spectrogram = tf.signal.stft(
+        signal, frame_length=params.FFT_SIZE, frame_step=params.HOP_SIZE, fft_length=params.FFT_SIZE)
 
-    # Compute the labels from the normalized confusion matrix.
-    labels = np.around(cm.astype('float') / cm.sum(axis=1)
-                       [:, np.newaxis], decimals=2)
+    # Compute magnitudes to avoid complex values
+    magnitude_spectrogram = tf.abs(spectrogram)
 
-    # Use white text if squares are dark; otherwise black.
-    threshold = 0.05
-    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
-        # color = "black" if cm[i, j] > threshold else "white"
-        plt.text(
-            j, i, labels[i, j], horizontalalignment="center", fontsize=6, color="white")
+    # Set the filter bank
+    mel_filterbank = tf.signal.linear_to_mel_weight_matrix(num_mel_bins=params.MEL_BINS, num_spectrogram_bins=int(
+        params.FFT_SIZE / 2 + 1),    sample_rate=params.SAMPLE_RATE)
 
-    plt.tight_layout()
-    plt.grid(False)
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
-    return figure
+    # Transform the linear-scale magnitude-spectrograms to mel-scale
+    mel_power_spectrograms = tf.matmul(tf.square(magnitude_spectrogram),
+                                       mel_filterbank)
+
+    # Transform magnitudes to log-scale
+    log_magnitude_mel_spectrograms = power_to_db(mel_power_spectrograms)
+    log_magnitude_mel_spectrograms = tf.expand_dims(
+        log_magnitude_mel_spectrograms, axis=-1)
+
+    # MinMax scale the features
+    log_magnitude_mel_spectrograms = tf.math.divide(tf.math.subtract(log_magnitude_mel_spectrograms, tf.math.reduce_min(
+        log_magnitude_mel_spectrograms)), tf.math.subtract(tf.math.reduce_max(log_magnitude_mel_spectrograms),
+                                                           tf.math.reduce_min(log_magnitude_mel_spectrograms)))
+
+    return log_magnitude_mel_spectrograms, label
+
+
+def power_to_db(S, amin=1e-16, top_db=80.0):
+    """Convert a power-spectrogram (magnitude squared) to decibel (dB) units.
+       Computes the scaling ``10 * log10(S / max(S))`` in a numerically
+       stable way.
+
+       Based on:
+       http://man.hubwiz.com/docset/LibROSA.docset/Contents/Resources/Documents/generated/librosa.core.power_to_db.html
+    """
+    def _tf_log10(x):
+        numerator = tf.math.log(x)
+        denominator = tf.math.log(tf.constant(10, dtype=numerator.dtype))
+        return numerator / denominator
+
+    # Scale magnitude relative to maximum value in S. Zeros in the output
+    # correspond to positions where S == ref.
+    ref = tf.reduce_max(S)
+
+    log_spec = 10.0 * _tf_log10(tf.maximum(amin, S))
+    log_spec -= 10.0 * _tf_log10(tf.maximum(amin, ref))
+
+    log_spec = tf.maximum(log_spec, tf.reduce_max(log_spec) - top_db)
+
+    return log_spec
